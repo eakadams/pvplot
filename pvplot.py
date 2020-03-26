@@ -25,7 +25,8 @@ PV plots:
 1. Plot major & minor pv slices
 """
 
-def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
+def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
+                    velmin = None, velmax = None, cenvel = None):
     """
     Plot major and minor axes pv slices
     Assumes standard SHIELD naming
@@ -39,6 +40,7 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
         datadir (str): Location of data. default = None, implies in local directory
         vmin (float): minimum intensity value for plotting
         vmax (float): maximum intensity value for plotting
+        rms (float): rms data value in cube. default = 1.3 mJy/bm. Assumed value in mJy
     Outputs:
         fig: Returns the figure instance
     """
@@ -77,6 +79,9 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
                          #axes_class=(WCSAxes, dict(wcs=wcsmajor)),
                           aspect=False, share_all=True, label_mode='L')
 
+    #set contour levels
+    #relative to rms, can pick final levels later
+    contours = np.array([2,4,8])*rms
 
     # loop over all the minor axis slices
     # numbering starts from 1
@@ -102,6 +107,10 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
                        #origin='lower', # put x-axis below plot
                        #vmax=vmax, vmin=vmin, # call the scale range set above
                        #aspect='auto') 
+                    
+        #overplot contours
+        ax.contour(d*1000,levels=contours,colors='black')
+        
         #get tickvalues
         #first offset, then vel
         offset_vals,offsetunit,offset_ticks = get_offset_vals(h,sep=45*u.arcsec)
@@ -110,14 +119,23 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
         offset_labels = map(str,offset_vals)
         #and set tick locations / lavels
         ax.set_xticks(offset_ticks)
-        ax.set_xticklabels(offset_labels)
-        #ax.set_xlabel('Offset ({0})'.format(offsetunit),size=15)
+        ax.set_xticklabels(offset_labels,size=10)
+        ax.set_xlabel('Offset',size=10)
     
         vel_vals,velunit,vel_ticks = get_vel_vals(h)
         vel_labels = map(str,vel_vals)
         ax.set_yticks(vel_ticks)
-        ax.set_yticklabels(vel_labels)
-        ax.set_ylabel('Velocity ({0})'.format(velunit),size=15)
+        ax.set_yticklabels(vel_labels,size=12)
+        ax.set_ylabel('Velocity ({0})'.format(velunit),size=12)
+        
+        #plot the velocity extent, if specified
+        
+    #set color bar for last minor axis plot
+    #stolen from previous code
+    cb2 = gridMinor[0].cax.colorbar(im)
+    cb2.set_label_text('mJy Bm$^{-1}$',
+                       size='medium',
+                       family='serif')
                 
     #plot major axis
     if datadir is None:
@@ -132,6 +150,8 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
                    origin='lower', # put x-axis below plot
                    vmax=vmax, vmin=vmin, # call the scale range set above
                    aspect='auto') 
+    #overplot contours
+    ax.contour(d*1000,levels=contours,colors='black')
     #get tickvalues
     #first offset, then vel
     offset_vals,offsetunit,offset_ticks = get_offset_vals(h)
@@ -139,14 +159,21 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4):
     offset_labels = map(str,offset_vals)
     #and set tick locations / lavels
     ax.set_xticks(offset_ticks)
-    ax.set_xticklabels(offset_labels)
-    #ax.set_xlabel('Offset ({0})'.format(offsetunit),size=15)
+    ax.set_xticklabels(offset_labels,size=10)
+    ax.set_xlabel('Offset ({0})'.format(offsetunit),size=10)
     
     vel_vals,velunit,vel_ticks = get_vel_vals(h)
     vel_labels = map(str,vel_vals)
     ax.set_yticks(vel_ticks)
     ax.set_yticklabels(vel_labels)
-    ax.set_ylabel('Velocity ({0})'.format(velunit),size=15)
+    ax.set_ylabel('Velocity ({0})'.format(velunit),size=12)
+    
+    #add some colorbar specification
+    #copied from previous PV slice code
+    cb2 = gridMajor[0].cax.colorbar(im)
+    cb2.set_label_text('mJy Bm$^{-1}$',
+                       size='medium',
+                       family='serif')
     
     #save figure
     fig.savefig('{0}_pv_major_minor.pdf'.format(agc))
