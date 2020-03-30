@@ -26,7 +26,7 @@ PV plots:
 """
 
 def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
-                    velmin = None, velmax = None, cenvel = None):
+                     velmax = None, cenvel = None):
     """
     Plot major and minor axes pv slices
     Assumes standard SHIELD naming
@@ -41,6 +41,8 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         vmin (float): minimum intensity value for plotting
         vmax (float): maximum intensity value for plotting
         rms (float): rms data value in cube. default = 1.3 mJy/bm. Assumed value in mJy
+        cenvel (km/s): center velocity in km/s
+        velmax (km/s): max extent of velocity in km/s
     Outputs:
         fig: Returns the figure instance
     """
@@ -103,13 +105,31 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         # define some properties of the image
         im = ax.imshow(d * 1000, # mJy/bm
                        aspect = 'auto',
-                       vmin=vmin, vmax=vmax)
-                       #origin='lower', # put x-axis below plot
+                       vmin=vmin, vmax=vmax,
+                       origin='lower') #this makes sure y-axis runs the right way
                        #vmax=vmax, vmin=vmin, # call the scale range set above
                        #aspect='auto') 
                     
         #overplot contours
         ax.contour(d*1000,levels=contours,colors='black')
+        
+        #overplot velocity values
+        #check that they are not none
+        #require all both to not be none
+        if (velmax is not None) and (cenvel is not None):
+            #get pixel value for velocities
+            pixmin,pixmax,cenpix = get_rot_pix(cenvel,velmax,h)
+            #also need offset min & max for plotting
+            #can do this straight from header. 
+            #start at zero, go to n1=hminor['naxis1']
+            noffset = h['naxis1']
+            #plot min vel
+            ax.plot([0,noffset-1],[pixmin,pixmin],color='black')
+            #plot max vel
+            ax.plot([0,noffset-1],[pixmax,pixmax],color='black')
+            #plot cenvel
+            ax.plot([0,noffset-1],[cenpix,cenpix],color='black',linestyle='--')
+            
         
         #get tickvalues
         #first offset, then vel
@@ -152,6 +172,24 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
                    aspect='auto') 
     #overplot contours
     ax.contour(d*1000,levels=contours,colors='black')
+    
+    #overplot velocity values
+    #check that they are not none
+    #require all both to not be none
+    if (velmax is not None) and (cenvel is not None):
+        #get pixel value for velocities
+        pixmin,pixmax,cenpix = get_rot_pix(cenvel,velmax,h)
+        #also need offset min & max for plotting
+        #can do this straight from header. 
+        #start at zero, go to n1=hminor['naxis1']
+        noffset = h['naxis1']
+        #plot min vel
+        ax.plot([0,noffset-1],[pixmin,pixmin],color='black')
+        #plot max vel
+        ax.plot([0,noffset-1],[pixmax,pixmax],color='black')
+        #plot cenvel
+        ax.plot([0,noffset-1],[cenpix,cenpix],color='black',linestyle='--')
+    
     #get tickvalues
     #first offset, then vel
     offset_vals,offsetunit,offset_ticks = get_offset_vals(h)
@@ -185,6 +223,28 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
 Functions for getting tick values and locations.
 This is because WCS and ImageGrid do not play nicely together
 """
+
+def get_rot_pix(cenvel,velmax,header,
+                headerunit = u.m / u.s, 
+                naxis='NAXIS2', cdelt='CDELT2', crval = 'CRVAL2', crpix='CRPIX2'):
+    """
+    Get pixel values for rotation velocity values
+    Inputs:
+        cenvel: center velocity
+        velmax: max extent of velocity
+        header: header to get coordiante transforms from
+    Outputs:
+        pixmin, pixmax, cenpix: Pixel values for min, max, cen
+    """
+    vmin = cenvel - velmax/2.
+    vmax = cenvel + velmax/2.
+    pixmin = ( (vmin.to(headerunit) - header[crval]*headerunit) /
+             (header[cdelt]*headerunit) + header[crpix] )
+    pixmax = ( (vmax.to(headerunit) - header[crval]*headerunit) /
+             (header[cdelt]*headerunit) + header[crpix] )
+    cenpix = ( (cenvel.to(headerunit) - header[crval]*headerunit) /
+             (header[cdelt]*headerunit) + header[crpix] )
+    return pixmin,pixmax,cenpix
 
 def get_offset_vals(header,sep=15*u.arcsec,headerunit = u.arcsec, 
                     naxis='NAXIS1', cdelt='CDELT1', crval = 'CRVAL1', crpix='CRPIX1'):
