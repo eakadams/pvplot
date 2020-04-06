@@ -25,8 +25,8 @@ PV plots:
 1. Plot major & minor pv slices
 """
 
-def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
-                     velmax = None, cenvel = None):
+def plot_major_minor(agc,nmin=7,datadir=None, vmin=-1, vmax=4, rms=1.3,
+                     velmax = None, cenvel = None, levels = [-4, -2, 2, 4, 8, 16]):
     """
     Plot major and minor axes pv slices
     Assumes standard SHIELD naming
@@ -43,11 +43,12 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         rms (float): rms data value in cube. default = 1.3 mJy/bm. Assumed value in mJy
         cenvel (km/s): center velocity in km/s
         velmax (km/s): max extent of velocity in km/s
+        levels (list): relative contour levels; default = [-4, -2, 2, 4, 8, 16]
     Outputs:
         fig: Returns the figure instance
     """
     # initialize a figure instance
-    fig = plt.figure(figsize=(8,6))
+    fig = plt.figure(figsize=(8,6.5))
 
     #Open a fits file to use the header for axes info
     #starting with minor
@@ -83,7 +84,7 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
 
     #set contour levels
     #relative to rms, can pick final levels later
-    contours = np.array([2,4,8])*rms
+    contours = np.array(levels)*rms
 
     # loop over all the minor axis slices
     # numbering starts from 1
@@ -106,12 +107,13 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         im = ax.imshow(d * 1000, # mJy/bm
                        aspect = 'auto',
                        vmin=vmin, vmax=vmax,
-                       origin='lower') #this makes sure y-axis runs the right way
+                       origin='lower',
+                       cmap='YlOrBr') #this makes sure y-axis runs the right way
                        #vmax=vmax, vmin=vmin, # call the scale range set above
                        #aspect='auto') 
                     
         #overplot contours
-        ax.contour(d*1000,levels=contours,colors='black')
+        ax.contour(d*1000,levels=contours,colors='blue')
         
         #overplot velocity values
         #check that they are not none
@@ -140,13 +142,13 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         #and set tick locations / lavels
         ax.set_xticks(offset_ticks)
         ax.set_xticklabels(offset_labels,size=10)
-        ax.set_xlabel('Offset',size=10)
+        ax.set_xlabel('Offset ["]',size=10)
     
-        vel_vals,velunit,vel_ticks = get_vel_vals(h)
+        vel_vals,velunit,vel_ticks = get_vel_vals(h,sep=10*u.km/u.s)
         vel_labels = map(str,vel_vals)
         ax.set_yticks(vel_ticks)
-        ax.set_yticklabels(vel_labels,size=12)
-        ax.set_ylabel('Velocity ({0})'.format(velunit),size=12)
+        ax.set_yticklabels(vel_labels,size=10)
+        ax.set_ylabel('Velocity [km s$^{-1}$]',size=10)
         
         #plot the velocity extent, if specified
         
@@ -154,8 +156,8 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
     #stolen from previous code
     cb2 = gridMinor[0].cax.colorbar(im)
     cb2.set_label_text('mJy Bm$^{-1}$',
-                       size='medium',
-                       family='serif')
+                       size=10)
+                       #family='serif')
                 
     #plot major axis
     if datadir is None:
@@ -169,9 +171,9 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
     im = ax.imshow(d * 1000, # mJy/bm
                    origin='lower', # put x-axis below plot
                    vmax=vmax, vmin=vmin, # call the scale range set above
-                   aspect='auto') 
+                   aspect='auto',cmap='YlOrBr') 
     #overplot contours
-    ax.contour(d*1000,levels=contours,colors='black')
+    ax.contour(d*1000,levels=contours,colors='blue')
     
     #overplot velocity values
     #check that they are not none
@@ -183,6 +185,7 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
         #can do this straight from header. 
         #start at zero, go to n1=hminor['naxis1']
         noffset = h['naxis1']
+        cdelt = h['CDELT1']
         #plot min vel
         ax.plot([0,noffset-1],[pixmin,pixmin],color='black')
         #plot max vel
@@ -192,28 +195,35 @@ def plot_major_minor(agc,nmin=7,datadir=None, vmin=-2, vmax=4, rms=1.3,
     
     #get tickvalues
     #first offset, then vel
-    offset_vals,offsetunit,offset_ticks = get_offset_vals(h)
+    offset_vals,offsetunit,offset_ticks = get_offset_vals(h,sep=15*u.arcsec)
     #convert values to strings to be labels
     offset_labels = map(str,offset_vals)
     #and set tick locations / lavels
     ax.set_xticks(offset_ticks)
     ax.set_xticklabels(offset_labels,size=10)
-    ax.set_xlabel('Offset ({0})'.format(offsetunit),size=10)
+    ax.set_xlabel('Offset ["]',size=10)
     
-    vel_vals,velunit,vel_ticks = get_vel_vals(h)
+    vel_vals,velunit,vel_ticks = get_vel_vals(h,sep=10*u.km/u.s)
     vel_labels = map(str,vel_vals)
     ax.set_yticks(vel_ticks)
-    ax.set_yticklabels(vel_labels)
-    ax.set_ylabel('Velocity ({0})'.format(velunit),size=12)
+    ax.set_yticklabels(vel_labels,size=10)
+    ax.set_ylabel('Velocity [km s$^{-1}$]',size=10)
     
     #add some colorbar specification
     #copied from previous PV slice code
     cb2 = gridMajor[0].cax.colorbar(im)
     cb2.set_label_text('mJy Bm$^{-1}$',
-                       size='medium',
-                       family='serif')
+                       size=10)
+                       #family='serif')
+        
+    #add AGC identifier
+    plt.text(0.1, 0.9,'AGC{}'.format(agc),
+     horizontalalignment='center',
+     verticalalignment='center',
+     transform = ax.transAxes, fontsize='large')
     
     #save figure
+    print('Saving figure as {}_pv_major_minor.pdf'.format(agc))
     fig.savefig('{0}_pv_major_minor.pdf'.format(agc))
     
     #return fig instance
